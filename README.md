@@ -7,7 +7,7 @@ mvn clean package
 # Start
 java -jar "-DelasticSearchHost=172.9.9.1" elastic-housekeeping.jar "logstash-staging" 20
 
-first param: index pattern
+first param: index pattern\
 second param: leave days
 
 ## Logs
