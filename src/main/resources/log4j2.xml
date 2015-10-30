@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<Configuration shutdownHook="disable"><!-- shutdownHook="disable" -->
+
+    <Appenders>
+
+        <Console name="STDOUT" target="SYSTEM_OUT">
+            <PatternLayout pattern="(%d{HH:mm:ss.SSS} [%-18thread]) %-7level %msg \(%F:%L\)%n" />
+        </Console>
+
+        <RollingRandomAccessFile name="HousekeepingLog"
+                                 fileName="/var/log/elastic-housekeeping/housekeeping.log"
+                                 filePattern="/var/log/elastic-housekeeping/$${date:yyyy-MM}/housekeeping-%d{yyyy-MM-dd}_%i.log"
+                                 immediateFlush="false"
+                                 append="true">
+            <Policies>
+                <SizeBasedTriggeringPolicy size="20 MB" />
+                <TimeBasedTriggeringPolicy />
+            </Policies>
+            <PatternLayout pattern="(%d{HH:mm:ss.SSS} [%thread]) %-7level %msg \(%F:%L\)%n" />
+        </RollingRandomAccessFile>
+
+    </Appenders>
+
+    <Loggers>
+
+        <AsyncRoot level="WARN" includeLocation="true">
+            <AppenderRef ref="HousekeepingLog" />
+        </AsyncRoot>
+
+        <AsyncLogger name="ch.simplatyser.elastic" level="INFO" />
+
+    </Loggers>
+    
+</Configuration>
