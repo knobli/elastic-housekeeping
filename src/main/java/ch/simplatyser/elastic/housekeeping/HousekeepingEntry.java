@@ -1,7 +1,7 @@
 package ch.simplatyser.elastic.housekeeping;
 
 /**
- * Created by r.santschi on 03.11.2015.
+ * Created by knobli on 03.11.2015.
  */
 public class HousekeepingEntry {
     private String indexPattern;
