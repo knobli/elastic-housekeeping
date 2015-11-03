@@ -19,9 +19,12 @@ java -jar "-DelasticSearchHost=172.9.9.1 -DelasticSearchPort=9900" elastic-house
 
 ## Properties file
 <code>
-INDEX_PATTERN.1=logstash-technicala<br>
-LEAVE_TIME.1=30<br>
-INDEX_PATTERN.2=logstash-technicalb<br>
+INDEX_PATTERN.1=logstash-technicala
+
+LEAVE_TIME.1=30
+
+INDEX_PATTERN.2=logstash-technicalb
+
 LEAVE_TIME.2=99
 </code>
 
