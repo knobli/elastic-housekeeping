@@ -1,5 +1,6 @@
 package ch.simplatyser.elastic.housekeeping;
 
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.Ignore;
@@ -16,7 +17,7 @@ public class HousekeepingServiceTest {
         HousekeepingService service = new HousekeepingService();
         String indexPattern = "logstash-technicala";
         int leaveDays = 30;
-        service.runHousekeeping(indexPattern, leaveDays);
+        service.runHousekeeping(Collections.singletonList(new HousekeepingEntry(indexPattern, leaveDays)));
     }
 
     @Test
