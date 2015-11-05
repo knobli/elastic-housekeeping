@@ -1,5 +1,5 @@
 # elastic-housekeeping
-Elastic Index Housekeeping
+Elastic 2.0.0 Index Housekeeping
 
 # Build
 mvn clean package
@@ -29,3 +29,8 @@ LEAVE_TIME.2=99
 /var/log/elastic-housekeeping/housekeeping.log
 
 # Using cronjob
+<pre>
+# m h dom mon dow user  command
+0  3    * * *   root    java -jar "-DelasticSearchPort=9200" /opt/elastic-housekeeping/elastic-housekeeping.jar /opt/elastic-housekeeping/housekeeping.properties
+</pre>
+

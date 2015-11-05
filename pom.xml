@@ -20,8 +20,8 @@
 
         <version.jodatime>2.8.1</version.jodatime>
 
-        <version.elastic>1.7.1</version.elastic>
-        <version.lucene>4.10.4</version.lucene>
+        <version.elastic>2.0.0</version.elastic>
+        <version.lucene>5.2.1</version.lucene>
     </properties>
 
     <dependencies>

@@ -3,22 +3,26 @@ package ch.simplatyser.elastic.housekeeping;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
-import org.elasticsearch.common.hppc.cursors.ObjectObjectCursor;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 
 /**
  * Created by knobli on 27.10.2015.
@@ -162,25 +166,46 @@ public class HousekeepingService {
 
 
     public void removeIndex(String indexName) {
-        TransportClient client = new TransportClient().addTransportAddress(new InetSocketTransportAddress(elasticSearchHost, elasticSearchPort));
-        DeleteIndexResponse response = client.admin().indices().delete(new DeleteIndexRequest(indexName)).actionGet();
-        if (response.isAcknowledged()) {
-            log.info("Index " + indexName + " successfully deleted.");
-        } else {
-            log.error("Could not delete index " + indexName);
+        TransportClient client = createTransportClient();
+        if (client != null) {
+            try {
+                DeleteIndexResponse response = client.admin().indices().delete(new DeleteIndexRequest(indexName)).actionGet();
+                if (response.isAcknowledged()) {
+                    log.info("Index " + indexName + " successfully deleted.");
+                } else {
+                    log.error("Could not delete index " + indexName);
+                }
+            } catch (ElasticsearchException e) {
+                log.error("Error during index request", e);
+            }
         }
+    }
+
+    private TransportClient createTransportClient() {
+        try {
+            InetAddress host = InetAddress.getByName(elasticSearchHost);
+            return TransportClient.builder().build().addTransportAddress(new InetSocketTransportAddress(host, elasticSearchPort));
+        } catch (UnknownHostException e) {
+            log.error("Could not get host '" + elasticSearchHost + "'", e);
+        }
+        return null;
     }
 
     public List<String> getIndices(String indexPattern) {
         List<String> indicesAsString = new ArrayList<>();
-        TransportClient client = new TransportClient().addTransportAddress(new InetSocketTransportAddress(elasticSearchHost, elasticSearchPort));
-        ImmutableOpenMap<String, IndexMetaData> indices = client.admin().cluster()
-                .prepareState().execute()
-                .actionGet().getState().getMetaData()
-                .getIndices();
-        for (ObjectObjectCursor<String, IndexMetaData> index : indices) {
-            if (index.key.contains(indexPattern)) {
-                indicesAsString.add(index.key);
+        TransportClient client = createTransportClient();
+        if (client != null) {
+            try {
+                ImmutableOpenMap<String, IndexMetaData> indices = client.admin().cluster().prepareState().execute()
+                        .actionGet().getState().getMetaData()
+                        .getIndices();
+                for (ObjectObjectCursor<String, IndexMetaData> index : indices) {
+                    if (index.key.contains(indexPattern)) {
+                        indicesAsString.add(index.key);
+                    }
+                }
+            } catch (ElasticsearchException e) {
+                log.error("Error during index request", e);
             }
         }
         return indicesAsString;
