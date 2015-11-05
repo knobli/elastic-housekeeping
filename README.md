@@ -10,13 +10,17 @@ mvn clean package
 * Cluster: -DelasticSearchCluster (no default)
 
 # Start with command line parameter
+<pre>
 java -jar -DelasticSearchHost=172.9.9.1 -DelasticSearchPort=9900 -DelasticSearchCluster=test elastic-housekeeping.jar "logstash-staging" 20
+</pre>
 
 * first param: index pattern
 * second param: leave days
 
 # Start with properties file
+<pre>
 java -jar -DelasticSearchHost=172.9.9.1 -DelasticSearchPort=9900 -DelasticSearchCluster=test elastic-housekeeping.jar "FULL_PATH_TO_PROPERTIES_FILE"
+</pre>
 
 ## Properties file
 <pre>
