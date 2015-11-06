@@ -7,6 +7,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -14,6 +15,8 @@ import java.util.regex.Pattern;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
+import org.elasticsearch.action.admin.indices.stats.IndexStats;
+import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
@@ -149,44 +152,53 @@ public class HousekeepingService {
                 LOGGER.error("Invalid index pattern, the pattern should not end with '-'");
                 continue;
             }
-            LOGGER.info("Index pattern: " + indexPattern);
-            LOGGER.info("Leave days: " + leaveDays);
-            LOGGER.info("Host: " + elasticSearchHost);
-            LOGGER.info("Port: " + elasticSearchPort);
-            LOGGER.info("Cluster: " + elasticSearchCluster);
+            LOGGER.info("Index pattern: {}, leave day: {}, host: {}, port: {}, cluster: {}", indexPattern, leaveDays, elasticSearchHost, elasticSearchPort, elasticSearchCluster);
             List<String> keepIndices = new ArrayList<>();
             for (int i = 0; i < leaveDays; i++) {
                 DateTime currentDate = DateTime.now().minusDays(i);
                 keepIndices.add(indexPattern + ".*\\-" + currentDate.toString("YYYY\\.MM\\.dd"));
             }
-            List<String> availableIndices = getIndices(indexPattern);
-            LOGGER.info("Found " + availableIndices.size() + " indices with pattern " + indexPattern);
+            List<ElasticIndex> availableIndices = getIndices(indexPattern);
+            long totalSize = calcTotalSize(availableIndices);
+            LOGGER.info("Found " + availableIndices.size() + " indices with pattern " + indexPattern + " with total size of " + humanReadableByteCount(totalSize, false));
             int deleted = 0;
-            for (String availableIndex : availableIndices) {
+            int cleanupSize = 0;
+            for (ElasticIndex availableIndex : availableIndices) {
                 boolean keep = false;
                 for (String keepIndex : keepIndices) {
-                    if (availableIndex.matches(keepIndex)) {
+                    if (availableIndex.getName().matches(keepIndex)) {
                         keep = true;
                     }
                 }
                 if (!keep) {
-                    LOGGER.info("Delete index: " + availableIndex);
-                    removeIndex(availableIndex);
-                    deleted++;
+                    if(removeIndex(availableIndex)) {
+                        cleanupSize += availableIndex.getSize();
+                        deleted++;
+                    }
                 }
             }
-            LOGGER.info("Deleted " + deleted + " indices with pattern " + indexPattern);
+            LOGGER.info("Deleted " + deleted + " indices with pattern " + indexPattern + " and save " + humanReadableByteCount(cleanupSize, false) + " of storage.");
         }
     }
 
+    private long calcTotalSize(List<ElasticIndex> availableIndices) {
+        long totalSize = 0;
+        for (ElasticIndex availableIndex : availableIndices) {
+            totalSize += availableIndex.getSize();
+        }
+        return totalSize;
+    }
 
-    public void removeIndex(String indexName) {
+
+    public boolean removeIndex(ElasticIndex index) {
         TransportClient client = createTransportClient();
         if (client != null) {
             try {
+                String indexName = index.getName();
                 DeleteIndexResponse response = client.admin().indices().delete(new DeleteIndexRequest(indexName)).actionGet();
                 if (response.isAcknowledged()) {
                     LOGGER.info("Index " + indexName + " successfully deleted.");
+                    return true;
                 } else {
                     LOGGER.error("Could not delete index " + indexName);
                 }
@@ -194,6 +206,7 @@ public class HousekeepingService {
                 LOGGER.error("Error during index request", e);
             }
         }
+        return false;
     }
 
     private TransportClient createTransportClient() {
@@ -207,17 +220,22 @@ public class HousekeepingService {
         return null;
     }
 
-    public List<String> getIndices(String indexPattern) {
-        List<String> indicesAsString = new ArrayList<>();
+    public List<ElasticIndex> getIndices(String indexPattern) {
+        List<ElasticIndex> indicesAsString = new ArrayList<>();
         TransportClient client = createTransportClient();
         if (client != null) {
             try {
+                IndicesStatsResponse stats = client.admin().indices().prepareStats()
+                        .clear()
+                        .setStore(true)
+                        .execute().actionGet();
                 ImmutableOpenMap<String, IndexMetaData> indices = client.admin().cluster().prepareState().execute()
                         .actionGet().getState().getMetaData()
                         .getIndices();
-                for (ObjectObjectCursor<String, IndexMetaData> index : indices) {
-                    if (index.key.contains(indexPattern)) {
-                        indicesAsString.add(index.key);
+                for (Map.Entry<String, IndexStats> index : stats.getIndices().entrySet()) {
+                    if (index.getKey().contains(indexPattern)) {
+                        long size = stats.getIndex(index.getKey()).getTotal().getStore().getSizeInBytes();
+                        indicesAsString.add(new ElasticIndex(index.getKey(), size));
                     }
                 }
             } catch (ElasticsearchException e) {
@@ -225,6 +243,14 @@ public class HousekeepingService {
             }
         }
         return indicesAsString;
+    }
+
+    public static String humanReadableByteCount(long bytes, boolean si) {
+        int unit = si ? 1000 : 1024;
+        if (bytes < unit) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(unit));
+        String pre = (si ? "kMGTPE" : "KMGTPE").charAt(exp-1) + (si ? "" : "i");
+        return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
     }
 
     public static void setElasticSearchHost(String elasticSearchHost) {
@@ -235,4 +261,7 @@ public class HousekeepingService {
         HousekeepingService.elasticSearchPort = elasticSearchPort;
     }
 
+    public static void setElasticSearchCluster(String elasticSearchCluster) {
+        HousekeepingService.elasticSearchCluster = elasticSearchCluster;
+    }
 }

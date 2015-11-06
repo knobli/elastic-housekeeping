@@ -1,5 +1,7 @@
 package ch.simplatyser.elastic.housekeeping;
 
+import static org.fest.assertions.api.Assertions.assertThat;
+
 import java.util.Collections;
 import java.util.List;
 
@@ -15,8 +17,11 @@ public class HousekeepingServiceTest {
     @Ignore
     public void runHousekeeping() throws Exception {
         HousekeepingService service = new HousekeepingService();
-        String indexPattern = "logstash-technicala";
-        int leaveDays = 30;
+        service.setElasticSearchHost("ES Host");
+        service.setElasticSearchPort(9300);
+        service.setElasticSearchCluster("clustername");
+        String indexPattern = "logstash";
+        int leaveDays = 999;
         service.runHousekeeping(Collections.singletonList(new HousekeepingEntry(indexPattern, leaveDays)));
     }
 
@@ -24,6 +29,10 @@ public class HousekeepingServiceTest {
     @Ignore
     public void testGetIndices() throws Exception {
         HousekeepingService service = new HousekeepingService();
-        List<String> indices = service.getIndices("logstash-");
+        service.setElasticSearchHost("ES Host");
+        service.setElasticSearchPort(9300);
+        service.setElasticSearchCluster("clustername");
+        List<ElasticIndex> indices = service.getIndices("logstash-");
+        assertThat(indices).isNotEmpty();
     }
 }
