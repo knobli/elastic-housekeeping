@@ -22,6 +22,7 @@ import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -212,8 +213,10 @@ public class HousekeepingService {
     private TransportClient createTransportClient() {
         try {
             InetAddress host = InetAddress.getByName(elasticSearchHost);
-            return TransportClient.builder().settings(Settings.builder().put("cluster.name", elasticSearchCluster)).build().
-                    addTransportAddress(new InetSocketTransportAddress(host, elasticSearchPort));
+            Settings settings = Settings.builder().put("cluster.name", elasticSearchCluster).build();
+            TransportClient client = new PreBuiltTransportClient(settings);
+            client.addTransportAddress(new InetSocketTransportAddress(host, elasticSearchPort));
+            return client;
         } catch (UnknownHostException e) {
             LOGGER.error("Could not get host '" + elasticSearchHost + "'", e);
         }
